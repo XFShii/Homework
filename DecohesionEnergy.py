@@ -228,7 +228,7 @@ class DecohesionEnergy(Property):
                 Cf = 1.60217657e-16 / (1e-20 * 2) * 0.001
                 evac = (task_result["energies"][-1] - equi_epa * natoms) / AA * Cf
                 vacuum_size = loadfn(os.path.join(ii, "decohesion_energy.json"))["vacuum_size"]
-                stress = (evac - pre_evac) / distance * 1e10,
+                stress = (evac - pre_evac) / vacuum_size_step * 1e10,
 
                 ptr_data += "%-30s   % 7.3f     %10.3e      % 10.3f     % 10.3f \n" % (
                     str(vacuum_size) + "-" + structure_dir + ":",
