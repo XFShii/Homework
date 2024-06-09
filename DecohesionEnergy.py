@@ -214,7 +214,7 @@ class DecohesionEnergy(Property):
             )
             vacuum_size_step = loadfn(os.path.join(os.path.dirname(output_file), "param.json"))["vacuum_size_step"]
             ptr_data += ("Miller Index: " + str(loadfn(os.path.join(os.path.dirname(output_file), "param.json"))["miller_index"]) + "\n")
-            ptr_data += "Vacuum_size(e-10 m):\tDecohesion_E(J/m^2) Decohesion_S(Pa) EpA(eV) equi_EpA(eV)\n"
+            ptr_data += "Vacuum_size(e-10 m):\tDecohesion_E(J/m^2) Decohesion_S(Pa)\n"
             pre_evac = 0
             for ii in all_tasks:
                 task_result = loadfn(os.path.join(ii, "result_task.json"))
@@ -230,19 +230,15 @@ class DecohesionEnergy(Property):
                 vacuum_size = loadfn(os.path.join(ii, "decohesion_energy.json"))["vacuum_size"]
                 stress = (evac - pre_evac) / vacuum_size_step * 1e10
 
-                ptr_data += "%-30s   % 7.3f     %10.3e      % 10.3f     % 10.3f \n" % (
+                ptr_data += "%-30s   % 7.3f     %10.3e\n" % (
                     str(vacuum_size) + "-" + structure_dir + ":",
                     evac,
                     stress,
-                    epa,
-                    equi_epa,
                 )
                 res_data[str(vacuum_size) + "_" + structure_dir] = [
                     evac,
                     stress,
                     vacuum_size,
-                    epa,
-                    equi_epa,
                 ]
                 pre_evac = evac
 
