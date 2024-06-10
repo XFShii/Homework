@@ -138,7 +138,7 @@ class DecohesionEnergy(Property):
                 # gen POSCAR of Slab
                 all_slabs = []
                 vacuum = []
-                num = 1
+                num = 0
                 while self.vacuum_size_step * num <= self.max_vacuum_size:
                     vacuum_size = self.vacuum_size_step * num
                     gen = SlabGenerator(
