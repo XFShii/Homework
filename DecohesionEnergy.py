@@ -120,7 +120,6 @@ class DecohesionEnergy(Property):
                 # refine = false && reproduce = false && self.inter_param["type"]== "vasp"
                     CONTCAR = "CONTCAR"
                     POSCAR = "POSCAR"
-
                 equi_contcar = os.path.join(path_to_equi, CONTCAR)
                 if not os.path.exists(equi_contcar):
                     raise RuntimeError("please do relaxation first")
@@ -135,12 +134,14 @@ class DecohesionEnergy(Property):
                     ptypes = vasp_utils.get_poscar_types(equi_contcar)
                     # element type 读取 vasp 第五行
                     ss = Structure.from_file(equi_contcar)
+
                 # gen POSCAR of Slab
                 all_slabs = []
                 vacuum = []
                 num = 0
                 while self.vacuum_size_step * num <= self.max_vacuum_size:
                     vacuum_size = self.vacuum_size_step * num
+                    '''
                     gen = SlabGenerator(
                         ss,
                         self.miller_index,
@@ -148,8 +149,10 @@ class DecohesionEnergy(Property):
                         vacuum_size,
                     )
                     slabs = gen.get_slabs()
+                    '''
+                    slabs = self.__gen_slab_pmg(ss, self.miller_index, self.min_slab_size, vacuum_size)
                     num = num + 1
-                    all_slabs.extend(slabs)
+                    all_slabs.append(slabs)
                     vacuum.append(vacuum_size)
 
                 os.chdir(path_to_work)
@@ -172,11 +175,13 @@ class DecohesionEnergy(Property):
                         if os.path.exists(jj):
                             os.remove(jj)
                     task_list.append(output_task)
+
                     logging.info(
                         "# %03d generate " % ii,
                         output_task,
                         " \t %d atoms" % len(all_slabs[ii].sites),
                     )
+
                     all_slabs[ii].to("POSCAR.tmp", "POSCAR")
                     vasp_utils.regulate_poscar("POSCAR.tmp", "POSCAR")
                     vasp_utils.sort_poscar("POSCAR", "POSCAR", ptypes)
@@ -184,7 +189,7 @@ class DecohesionEnergy(Property):
                     if self.inter_param["type"] == "abacus":
                         abacus_utils.poscar2stru("POSCAR", self.inter_param, "STRU")
                         os.remove("POSCAR")
-                    decohesion_energy = {"miller_index": all_slabs[ii].miller_index, "vacuum_size":vacuum[ii]}
+                    decohesion_energy = {"miller_index": self.miller_index, "vacuum_size":vacuum[ii]}
                     dumpfn(decohesion_energy, "decohesion_energy.json", indent=4)
         os.chdir(cwd)
         return task_list
@@ -225,12 +230,12 @@ class DecohesionEnergy(Property):
                 )
 
                 structure_dir = os.path.basename(ii)
-                Cf = 1.60217657e-16 / (1e-20 * 2) * 0.001
-                evac = (task_result["energies"][-1] - equi_epa * natoms) / AA * Cf  # vacuum_size = 0 evac = 0 stress = 0
+                Cf = 1.60217657e-16 / 1e-20  * 0.001
+                evac = (task_result["energies"][-1] - equi_epa * natoms) / AA * Cf
                 vacuum_size = loadfn(os.path.join(ii, "decohesion_energy.json"))["vacuum_size"]
                 stress = (evac - pre_evac) / vacuum_size_step * 1e10
 
-                ptr_data += "%-30s   % 7.3f     %10.3e\n" % (
+                ptr_data += "%-30s   % 7.3f     %10.3e \n" % (
                     str(vacuum_size) + "-" + structure_dir + ":",
                     evac,
                     stress,
@@ -258,5 +263,46 @@ class DecohesionEnergy(Property):
             json.dump(res_data, fp, indent=4)
 
         return res_data, ptr_data
+
+    def __gen_slab_pmg(self, structure: Structure,
+                       plane_miller, slab_size, vacuum_size) -> Structure:
+
+        # Generate slab via Pymatgen
+        slabGen = SlabGenerator(structure, miller_index=plane_miller,
+                                min_slab_size=slab_size, min_vacuum_size=0,
+                                center_slab=True, in_unit_planes=False,
+                                lll_reduce=True, reorient_lattice=False,
+                                primitive=False)
+        slabs_pmg = slabGen.get_slabs(ftol=0.001)
+        slab = [s for s in slabs_pmg if s.miller_index == plane_miller][0]
+        # If a transform matrix is passed, reorient the slab
+        order = zip(slab.frac_coords, slab.species)
+        c_order = sorted(order, key=lambda x: x[0][2])
+        sorted_frac_coords = []
+        sorted_species = []
+        for (frac_coord, species) in c_order:
+            sorted_frac_coords.append(frac_coord)
+            sorted_species.append(species)
+        # add vacuum layer to the slab with height unit of angstrom
+        a, b, c = slab.lattice.matrix
+        slab_height = slab.lattice.matrix[2][2]
+        if slab_height >= 0:
+            self.is_flip = False
+            elong_scale = 1 + (vacuum_size / slab_height)
+        else:
+            self.is_flip = True
+            elong_scale = 1 + (-vacuum_size / slab_height)
+        new_lattice = [a, b, elong_scale * c]
+        new_frac_coords = []
+        for ii in range(len(sorted_frac_coords)):
+            coord = sorted_frac_coords[ii].copy()
+            coord[2] = coord[2] / elong_scale
+            new_frac_coords.append(coord)
+        # 建立 slab 结构
+
+        slab_new = Structure(lattice=np.matrix(new_lattice),
+                         coords=new_frac_coords, species=sorted_species)
+
+        return slab_new
 
 
