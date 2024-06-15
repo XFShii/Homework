@@ -208,6 +208,7 @@ class DecohesionEnergy(Property):
         res_data = {}
         ptr_data = os.path.dirname(output_file) + "\n"
         if not self.reprod:
+            '''
             equi_path = os.path.abspath(
                 os.path.join(
                     os.path.dirname(output_file), "../relaxation/relax_task"
@@ -217,21 +218,21 @@ class DecohesionEnergy(Property):
             equi_epa = equi_result["energies"][-1] / np.sum(
                 equi_result["atom_numbs"]
             )
+            '''
             vacuum_size_step = loadfn(os.path.join(os.path.dirname(output_file), "param.json"))["vacuum_size_step"]
             ptr_data += ("Miller Index: " + str(loadfn(os.path.join(os.path.dirname(output_file), "param.json"))["miller_index"]) + "\n")
             ptr_data += "Vacuum_size(e-10 m):\tDecohesion_E(J/m^2) Decohesion_S(Pa)\n"
+            pre_task_result = loadfn(os.path.join(all_tasks[0],"result_task.json"))
             pre_evac = 0
+            equi_evac = pre_task_result["energies"][-1]
             for ii in all_tasks:
                 task_result = loadfn(os.path.join(ii, "result_task.json"))
-                natoms = np.sum(task_result["atom_numbs"])
-                epa = task_result["energies"][-1] / natoms
                 AA = np.linalg.norm(
                     np.cross(task_result["cells"][0][0], task_result["cells"][0][1])
                 )
-
                 structure_dir = os.path.basename(ii)
                 Cf = 1.60217657e-16 / 1e-20  * 0.001
-                evac = (task_result["energies"][-1] - equi_epa * natoms) / AA * Cf
+                evac = (task_result["energies"][-1] - equi_evac) / AA * Cf
                 vacuum_size = loadfn(os.path.join(ii, "decohesion_energy.json"))["vacuum_size"]
                 stress = (evac - pre_evac) / vacuum_size_step * 1e10
 
