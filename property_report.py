@@ -117,7 +117,7 @@ class EOSReport(PropertyReport):
 
         return table, df
 
-class DecohesionEnergy(PropertyReport):
+class DecohesionEnergyReport(PropertyReport):
     @staticmethod
     def plotly_graph(res_data: dict, name: str, **kwargs):
         decohesion_e = [values[0] for values in res_data.values()]
@@ -175,7 +175,7 @@ class DecohesionEnergy(PropertyReport):
             )
         )
         trace = [trace_E, trace_S]
-        return [trace], layout
+        return trace, layout
 
     @staticmethod
     def dash_table(res_data: dict, decimal: int = 3, **kwargs) -> dash_table.DataTable:
